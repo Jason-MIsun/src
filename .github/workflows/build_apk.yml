@@ -47,8 +47,7 @@ jobs:
           sudo swapoff -av
           sudo rm -f /swapfile
           eval `ssh-agent -s`
-          ssh-add ~/.ssh/*
-
+    
       - name: Reclaiming disk space on / by removing .NET framework
         run: sudo rm -rf /usr/share/dotnet
 
@@ -170,7 +169,10 @@ jobs:
         run: ln -s /mnt/cache $HOME/
 
       - name: Downloading binary objects cache to $HOME/cache
-        run: rclone copy --fast-list --transfers=128 cache:kiwibrowser-ccache-${{ matrix.platform }} $HOME/cache
+        run: |
+         #rclone copy --fast-list --transfers=128 cache:kiwibrowser-ccache-${{ matrix.platform }} $HOME/cache
+         env
+         echo cache:kiwi
 
       - name: Checking available disk-space after downloading cache
         run: df -h
