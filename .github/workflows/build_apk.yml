@@ -46,7 +46,7 @@ jobs:
         run: |
           sudo swapoff -av
           sudo rm -f /swapfile
-          eval `ssh-agent -s`
+          
     
       - name: Reclaiming disk space on / by removing .NET framework
         run: sudo rm -rf /usr/share/dotnet
@@ -64,12 +64,6 @@ jobs:
         run: |
           sudo ln -s /extended_data /mnt/secondary_disk
           sudo ln -s /mnt/secondary_disk $GITHUB_WORKSPACE/
-
-      # or alternatively, to work on the main partition
-      # - name: On HDD - Creating symlink on /dev/disk/azure/root-part1 pointing to /dev/disk/azure/resource-part1
-      #  run: |
-      #    sudo ln -s /extended_data /mnt/secondary_disk
-      #    sudo ln -s /mnt/secondary_disk $GITHUB_WORKSPACE/
 
       # We cannot checkout outside of $GITHUB_WORKSPACE, but we want to checkout to the SSD
       # so we have a symbolic link $GITHUB_WORKSPACE/secondary_disk/ pointing to the SSD
@@ -121,14 +115,6 @@ jobs:
         if: matrix.platform == 'arm64'
         run: sed -i "s#android_default_version_code = \"1\"#android_default_version_code = \"$(date '+%y%m%d')2\"#" secondary_disk/out/android_${{ matrix.platform }}/args.gn
 
-      - name: Modifying args.gn (x86)
-        if: matrix.platform == 'x86'
-        run: sed -i "s#android_default_version_code = \"1\"#android_default_version_code = \"$(date '+%y%m%d')3\"#" secondary_disk/out/android_${{ matrix.platform }}/args.gn
-
-      - name: Modifying args.gn (x64)
-        if: matrix.platform == 'x64'
-        run: sed -i "s#android_default_version_code = \"1\"#android_default_version_code = \"$(date '+%y%m%d')4\"#" secondary_disk/out/android_${{ matrix.platform }}/args.gn
-
       - name: Displaying args.gn
         run: cat secondary_disk/out/android_${{ matrix.platform }}/args.gn
 
@@ -170,7 +156,8 @@ jobs:
 
       - name: Downloading binary objects cache to $HOME/cache
         run: |
-         #rclone copy --fast-list --transfers=128 cache:kiwibrowser-ccache-${{ matrix.platform }} $HOME/cache
+         rclone copy --fast-list --transfers=128 cache:kiwibrowser-ccache-${{ matrix.platform }} $HOME/cache
+         #rclone copy --fast-list --transfers=128 cache:kiwibrowser-ccache-arm64 $HOME/cache
          env
          echo cache:kiwi
 
