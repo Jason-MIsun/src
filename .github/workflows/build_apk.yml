@@ -38,8 +38,13 @@ jobs:
       - name: 清理空间
         run: sudo rm -rf /usr/share/dotnet
 
-      - name: 检查源代码 $GITHUB_WORKSPACE
+      - name: 拉取源代码 $GITHUB_WORKSPACE
         uses: actions/checkout@v2
+      
+      - name: 检查当前路径
+        run: |
+          pwd
+          ls
 
       - name: 第二空间建造on /dev/disk/azure/resource-part1 (SSD)
         run: |
@@ -55,17 +60,20 @@ jobs:
       # We cannot checkout outside of $GITHUB_WORKSPACE, but we want to checkout to the SSD
       # so we have a symbolic link $GITHUB_WORKSPACE/secondary_disk/ pointing to the SSD
       # and checkout the code there
-      - name: 检查 CIPD dependencies in /mnt/secondary_disk/.cipd
+      - name: 下载wiki browser源码
         uses: actions/checkout@v2
         with:
           repository: kiwibrowser/dependencies
           path: ./secondary_disk/.cipd 
 
-      - name: Linking .cipd in the proper path and copying .gclient and .gclient_entries
+      - name: 链接 .cipd 复制 .gclient 
         run: |
           ln -s $GITHUB_WORKSPACE/./secondary_disk/.cipd ..
           cp ../.cipd/.gclient ..
           cp ../.cipd/.gclient_entries ..
+          pwd
+          ls
+          
 
       - name: 更新 APT 
         run: sudo apt-get update
@@ -118,7 +126,7 @@ jobs:
           echo "::set-env name=CC::ccache clang -Qunused-arguments"
           echo "::set-env name=CXX::ccache clang++ -Qunused-arguments"
 
-      - name: Checking available disk-space
+      - name: 检查可用磁盘空间
         run: df -h
       
       - name: Creating cache folder on /dev/disk/azure/resource-part1 (SSD)
