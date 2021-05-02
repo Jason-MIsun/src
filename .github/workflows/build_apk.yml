@@ -15,7 +15,6 @@ on:
       - '*.yml'
     branches: [ master ]
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   build:
     # The type of runner that the job will run on
@@ -26,35 +25,23 @@ jobs:
       max-parallel: 4
       matrix:
         platform: [arm, arm64]
-
-    # The GitHub Actions machines have a "slow disk", and a SSD "fast" disk.
-    # However, there is not enough space to do all the processing on the SSD.
-    
-    # We refer to the disks based on their name in /dev/disk
-    # /dev/disk/azure/root-part1 is / ("slow disk")
-    # /dev/disk/azure/resource-part1 is a 14 GB ephemeral SSD disk mounted in /mnt
-
-    # We store the source-code repository (kiwibrowser/src) on /dev/disk/azure/root-part1
-    # We store cache, dependencies and output on /dev/disk/azure/resource-part1 (SSD)
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
+        
     steps:
-      - name: Initializing build
+      - name: 初始化编译流程
         run: echo Initializing build for platform ${{ matrix.platform }}
 
-      - name: Reclaiming disk space on / by disabling swap partition
+      - name: 清理空间
         run: |
           sudo swapoff -av
           sudo rm -f /swapfile
           
-    
-      - name: Reclaiming disk space on / by removing .NET framework
+      - name: 清理空间
         run: sudo rm -rf /usr/share/dotnet
 
-      - name: Checking-out source-code in $GITHUB_WORKSPACE
+      - name: 检查源代码 $GITHUB_WORKSPACE
         uses: actions/checkout@v2
 
-      - name: Creating secondary disk folder on /dev/disk/azure/resource-part1 (SSD)
+      - name: 第二空间建造on /dev/disk/azure/resource-part1 (SSD)
         run: |
           sudo mkdir -p /extended_data
           sudo chown -R runner:docker /extended_data
@@ -68,7 +55,7 @@ jobs:
       # We cannot checkout outside of $GITHUB_WORKSPACE, but we want to checkout to the SSD
       # so we have a symbolic link $GITHUB_WORKSPACE/secondary_disk/ pointing to the SSD
       # and checkout the code there
-      - name: Checking-out CIPD dependencies in /mnt/secondary_disk/.cipd
+      - name: 检查 CIPD dependencies in /mnt/secondary_disk/.cipd
         uses: actions/checkout@v2
         with:
           repository: kiwibrowser/dependencies
@@ -80,28 +67,25 @@ jobs:
           cp ../.cipd/.gclient ..
           cp ../.cipd/.gclient_entries ..
 
-      - name: Installing rclone
-        run: curl https://rclone.org/install.sh | sudo bash -s beta
-
-      - name: Updating APT repository
+      - name: 更新 APT 
         run: sudo apt-get update
 
-      - name: Installing Python and OpenJDK
+      - name: 安装Python OpenJDK
         run: sudo apt-get install -y python openjdk-8-jdk-headless libncurses5 ccache
 
-      - name: Setting-up Java 8 as default Java provider
+      - name: 设置java环境
         run: sudo update-java-alternatives --set java-1.8.0-openjdk-amd64
 
-      - name: Installing system dependencies
+      - name: 安装所需软件
         run: |
           sudo bash install-build-deps.sh --no-chromeos-fonts
           build/linux/sysroot_scripts/install-sysroot.py --arch=i386
           build/linux/sysroot_scripts/install-sysroot.py --arch=amd64
 
-      - name: Creating output folder
+      - name: 生成输出文件夹
         run: mkdir -p secondary_disk/out/android_${{ matrix.platform }}
 
-      - name: Generating one-time APK signature key
+      - name: 生成一次性APK 签名文件
         run: keytool -genkey -v -keystore keystore.jks -alias dev -keyalg RSA -keysize 2048 -validity 10000 -storepass public_password -keypass public_password -dname "cn=Kiwi Browser (unverified), ou=Actions, o=Kiwi Browser, c=GitHub"
 
       - name: Copying args.gn to target folder
@@ -118,16 +102,16 @@ jobs:
       - name: Displaying args.gn
         run: cat secondary_disk/out/android_${{ matrix.platform }}/args.gn
 
-      - name: Downloading depot_tools
+      - name: 下载 depot工具
         working-directory: ./secondary_disk
         run: git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
 
-      - name: Adding depot_tools to path
+      - name: 添加depot工具至环境变量
         env:
           ACTIONS_ALLOW_UNSECURE_COMMANDS: true
         run: echo "::add-path::$GITHUB_WORKSPACE/secondary_disk/depot_tools"
 
-      - name: Setting environment variables
+      - name: 设置环境
         env:
           ACTIONS_ALLOW_UNSECURE_COMMANDS: true
         run: |
@@ -136,16 +120,7 @@ jobs:
 
       - name: Checking available disk-space
         run: df -h
-
-      - name: Creating rclone config
-        run: |
-          mkdir -p $HOME/.config/rclone/
-          echo '[cache]' > $HOME/.config/rclone/rclone.conf
-          echo 'type = sftp' >> $HOME/.config/rclone/rclone.conf
-          echo 'host = ${{ secrets.STORAGE_HOST }}' >> $HOME/.config/rclone/rclone.conf
-          echo 'user = storage' >> $HOME/.config/rclone/rclone.conf
-          echo 'key_pem = ${{ secrets.STORAGE_KEY }}' >> $HOME/.config/rclone/rclone.conf
-
+      
       - name: Creating cache folder on /dev/disk/azure/resource-part1 (SSD)
         run: |
           sudo mkdir -p /mnt/cache
@@ -156,10 +131,10 @@ jobs:
 
       - name: Downloading binary objects cache to $HOME/cache
         run: |
-         rclone copy --fast-list --transfers=128 cache:kiwibrowser-ccache-${{ matrix.platform }} $HOME/cache
+         #rclone copy --fast-list --transfers=128 cache:kiwibrowser-ccache-${{ matrix.platform }} $HOME/cache
          #rclone copy --fast-list --transfers=128 cache:kiwibrowser-ccache-arm64 $HOME/cache
          env
-         echo cache:kiwi
+         ls -l
 
       - name: Checking available disk-space after downloading cache
         run: df -h
@@ -169,16 +144,6 @@ jobs:
         
       - name: Calculating cache size
         run: du -csh $HOME/cache
-
-      - name: Creating ccache configuration
-        run: |
-          mkdir -p $HOME/.ccache/
-          echo 'compiler_check = none' >> $HOME/.ccache/ccache.conf
-          echo "stats = false" >> $HOME/.ccache/ccache.conf
-          echo 'max_size = 20G' >> $HOME/.ccache/ccache.conf
-          echo "base_dir = $HOME" >> $HOME/.ccache/ccache.conf
-          echo "cache_dir = $HOME/cache" >> $HOME/.ccache/ccache.conf
-          echo "hash_dir = false" >> $HOME/.ccache/ccache.conf
 
       - name: Running gclient runhooks
         run: gclient runhooks
